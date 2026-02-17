@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planner de Tarefas</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #f0f5ff 0%, #d9e6ff 100%);
+      font-family: 'Segoe UI', sans-serif;
+      color: #333;
+      min-height: 100vh;
+      margin: 0;
+      padding-bottom: 50px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin-top: 30px;
+    }
+    
+    h1 {
+      color: #6a11cb;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    
+    .task-board {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .column {
+      background: #f0f4ff;
+      border-radius: 10px;
+      padding: 15px;
+      min-width: 300px;
+      flex: 1;
+    }
+    
+    .column-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #ddd;
+    }
+    
+    .task-list {
+      min-height: 200px;
+    }
+    
+    .task-item {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      cursor: move;
+      transition: transform 0.2s ease;
+    }
+    
+    .task-item:hover {
+      transform: translateY(-3px);
+    }
+    
+    .task-content {
+      font-size: 0.95em;
+    }
+    
+    .task-meta {
+      font-size: 0.8em;
+      color: #888;
+      margin-top: 8px;
+    }
+    
+    .add-task-input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    
+    .delete-btn {
+      background: #ff6b6b;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Planner</h1>
+
+    <div class="header-actions">
+      <button id="addColumnBtn" class="btn btn-outline-primary">+ Adicionar Coluna</button>
+    </div>
+
+    <div id="taskBoard" class="task-board">
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const taskBoard = document.getElementById('taskBoard');
+      const addColumnBtn = document.getElementById('addColumnBtn');
+
+      let columns = JSON.parse(localStorage.getItem('plannerColumns')) || [
+        { id: 'default', title: 'Tarefas', tasks: [] }
+      ];
+
+      function renderBoard() {
+        taskBoard.innerHTML = '';
+
+        columns.forEach(column => {
+          const columnEl = document.createElement('div');
+          columnEl.className = 'column';
+          columnEl.setAttribute('data-id', column.id);
+
+          const header = document.createElement('div');
+          header.className = 'column-header';
+          
+          const title = document.createElement('h4');
+          title.textContent = column.title;
+
+          const deleteColBtn = document.createElement('button');
+          deleteColBtn.className = 'delete-btn';
+          deleteColBtn.textContent = 'X';
+          deleteColBtn.onclick = () => {
+            columns = columns.filter(col => col.id !== column.id);
+            saveToLocalStorage();
+            renderBoard();
+          };
+
+          header.appendChild(title);
+          header.appendChild(deleteColBtn);
+
+          const taskList = document.createElement('div');
+          taskList.className = 'task-list';
+          taskList.id = `taskList-${column.id}`;
+
+          const addTaskInput = document.createElement('input');
+          addTaskInput.type = 'text';
+          addTaskInput.className = 'add-task-input';
+          addTaskInput.placeholder = 'Adicionar tarefa...';
+
+          const addTaskBtn = document.createElement('button');
+          addTaskBtn.textContent = '+';
+          addTaskBtn.onclick = () => {
+            if (addTaskInput.value.trim()) {
+              const newTask = {
+                id: Date.now(),
+                content: addTaskInput.value.trim(),
+                createdAt: new Date()
+              };
+              column.tasks.push(newTask);
+              addTaskInput.value = '';
+              saveToLocalStorage();
+              renderBoard();
+            }
+          };
+
+          columnEl.appendChild(header);
+          columnEl.appendChild(taskList);
+          columnEl.appendChild(addTaskInput);
+          columnEl.appendChild(addTaskBtn);
+
+          taskBoard.appendChild(columnEl);
+
+          column.tasks.forEach(task => {
+            const taskEl = document.createElement('div');
+            taskEl.className = 'task-item';
+            taskEl.setAttribute('data-id', task.id);
+
+            const content = document.createElement('div');
+            content.className = 'task-content';
+            content.textContent = task.content;
+
+            const meta = document.createElement('div');
+            meta.className = 'task-meta';
+            meta.textContent = `Criado em: ${new Date(task.createdAt).toLocaleString()}`;
+
+            const deleteTaskBtn = document.createElement('button');
+            deleteTaskBtn.className = 'delete-btn';
+            deleteTaskBtn.textContent = 'X';
+            deleteTaskBtn.onclick = () => {
+              column.tasks = column.tasks.filter(t => t.id !== task.id);
+              saveToLocalStorage();
+              renderBoard();
+            };
+
+            taskEl.appendChild(content);
+            taskEl.appendChild(meta);
+            taskEl.appendChild(deleteTaskBtn);
+            taskList.appendChild(taskEl);
+          });
+
+          new Sortable(taskList, {
+            group: 'tasks',
+            animation: 150,
+            onEnd: function(evt) {
+              const taskId = parseInt(evt.item.getAttribute('data-id'));
+              const oldColId = evt.from.parentElement.getAttribute('data-id');
+              const newColId = evt.to.parentElement.getAttribute('data-id');
+
+              if (oldColId !== newColId) {
+                const oldCol = columns.find(col => col.id === oldColId);
+                const newCol = columns.find(col => col.id === newColId);
+                const task = oldCol.tasks.find(t => t.id === taskId);
+
+                oldCol.tasks = oldCol.tasks.filter(t => t.id !== taskId);
+                newCol.tasks.push(task);
+
+                saveToLocalStorage();
+              }
+            }
+          });
+        });
+      }
+
+      addColumnBtn.addEventListener('click', () => {
+        const title = prompt('Nome da nova coluna:');
+        if (title) {
+          const newCol = {
+            id: Date.now().toString(),
+            title: title,
+            tasks: []
+          };
+          columns.push(newCol);
+          saveToLocalStorage();
+          renderBoard();
+        }
+      });
+
+      function saveToLocalStorage() {
+        localStorage.setItem('plannerColumns', JSON.stringify(columns));
+      }
+
+      renderBoard();
+    });
+  </script>
+</body>
+</html>
